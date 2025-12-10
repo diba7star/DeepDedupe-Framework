@@ -33,7 +33,7 @@ To solve this, we introduce the `IDeduplicable` interface, forcing developers to
 
 We provide the core contract and the deduplication logic in C#.
 
-### ۱. فایل `IDeduplicable.cs` (The Contract)
+### ۱. 🗃️ `IDeduplicable.cs` (The Contract)
 
 
 ```csharp
