@@ -67,3 +67,18 @@ public interface IDeduplicable
     /// </summary>
     byte[] GetContentBytes();
 }
+
+## 🗺️ Roadmap and Future Development
+
+This project aims to become a language-agnostic framework for runtime deduplication.
+
+* **Java PoC:** Implement the core logic using `ConcurrentHashMap` and manage canonical objects with `WeakReference` to prevent memory leaks if the canonical object is no longer referenced externally.
+* **Go PoC:** Implement the framework using `sync.Map` and leverage Go's memory model for safe object sharing.
+* **Performance Benchmarks:** Integrate benchmark tools (e.g., BenchmarkDotNet) to provide empirical data on memory savings vs. CPU overhead (hashing cost).
+* **Automatic Serialization:** Develop utility classes that use Reflection/Code Generation to automatically create deterministic byte arrays, reducing boilerplate for developers.
+
+## 🤝 Contribution
+Your contributions are highly valued, especially those focused on:
+1.  Implementing PoCs for other languages (Java, Go, Python).
+2.  Developing robust, performant serialization helpers.
+3.  Providing real-world memory usage data/benchmarks.
