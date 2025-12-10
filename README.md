@@ -6,6 +6,8 @@ Most developers rely on the Garbage Collector (GC) for memory optimization. Howe
 
 Our research and practical observations across large-scale industrial systems reveal a pervasive issue: **A significant portion of your application's live memory heap consists of byte-for-byte identical copies of objects.** This happens because real-world application data (like transaction structures, session objects, and log payloads) have low entropy, leading to massive data redundancy.
 
+
+
 ### 📊 Real-World Observation Statistics:
 In large back-end systems (e.g., Core Banking, Ad Platforms, Auth Services), we found the following levels of redundancy:
 
@@ -20,81 +22,48 @@ In large back-end systems (e.g., Core Banking, Ad Platforms, Auth Services), we 
 
 ## ✨ The DeepDedupe Solution: Content-Addressable Memory in Application Layer
 
-`DeepDedupe` is a methodology and framework that implements **Content-Addressable Storage (CAS)** principles directly within the application layer to enforce reference sharing. 
+`DeepDedupe` is a methodology and framework that implements **Content-Addressable Storage (CAS)** principles directly within the application layer to enforce reference sharing.
 
-### How It Works:
-1.  **Content Hashing:** Instead of relying on the object's memory address, `DeepDedupe` computes a strong, cryptographically robust hash (e.g., SHA-256) based on the *actual content* (payload) of the object.
-2.  **Canonical Lookup:** Before the program allocates a potentially new object, its content hash is checked against a thread-safe map (cache) of canonical objects.
-3.  **Reference Sharing:**
-    * If a match is found, the **existing, shared reference** (the canonical object) is returned, and the newly created duplicate object is immediately discarded (allowing the GC to collect it).
-    * If no match is found, the new object is stored as the canonical reference, and its reference is returned.
+### ⚠️ The Critical Challenge: Deterministic Serialization
+The core technical hurdle is ensuring **deterministic serialization**. If two objects have identical content but their byte representation differs (e.g., due to field order changes, non-deterministic timestamps, or ignored metadata), deduplication fails.
 
-This process ensures that for any identical piece of data, there is only ever **one physical object** occupying the heap memory.
+To solve this, we introduce the `IDeduplicable` interface, forcing developers to explicitly define the canonical (hashable) content of their objects.
 
 ## 💻 Proof of Concept (PoC) Implementation in C#
 
-Since the implementation varies by language (C#, Java, Python, Go), we provide a Proof of Concept demonstrating the core logic in C#.
+We define the core contract and the deduplication logic.
 
-### `DeepDedupe_Core.cs`
+### ۱. فایل جدید: `IDeduplicable.cs` (Contract)
+ایجاد این اینترفیس برای توسعه‌دهندگان ضروری است تا بتوانند آبجکت‌ها را برای هش‌گیری آماده کنند. (در گام ۲ به این فایل می‌پردازیم).
+
+### ۲. به‌روزرسانی `DeepDedupe_Core.cs` (Logic)
+
+محتوای فایل `DeepDedupe_Core.cs` را با این کد به‌روزرسانی کنید تا از اینترفیس جدید استفاده کند.
+
+### ۳. فایل جدید: `Example_DeduplicableObject.cs` (Demo)
+
+ایجاد یک مثال واقعی برای نشان دادن نحوه پیاده‌سازی اینترفیس. (در گام ۳ به این فایل می‌پردازیم).
+
+---
+
+## 🛠️ گام ۲: ایجاد فایل `IDeduplicable.cs` (Contract)
+
+این فایل جدید را در ریپازیتوری خود ایجاد کنید:
 
 ```csharp
-using System.Collections.Concurrent;
-using System.Security.Cryptography; 
+// IDeduplicable.cs
 
 /// <summary>
-/// A conceptual implementation of a Content-Addressable Object Deduplicator.
-/// Note: Real-world serialization logic must be implemented separately.
+/// Interface for objects that can provide their core content in a deterministic byte array format 
+/// for hashing and deduplication.
 /// </summary>
-public class DeepDeduper<T> where T : class
+public interface IDeduplicable
 {
-    // Key: Content Hash (string representation of SHA-256)
-    // Value: The actual canonical, shared object reference
-    private readonly ConcurrentDictionary<string, T> _canonicalObjects = new ConcurrentDictionary<string, T>();
-
     /// <summary>
-    /// Gets a shared reference for the given object content, creating a canonical 
-    /// object if it does not already exist.
+    /// Returns the deterministic byte representation of the object's essential content.
+    /// Order of fields and endianness must be strictly consistent.
+    /// IMPORTANT: Fields that are always unique (e.g., timestamps, IDs not relevant to content) 
+    /// should be excluded from this byte array.
     /// </summary>
-    public T GetCanonicalObject(T newObject)
-    {
-        // --- 1. Serialize and Hash ---
-        byte[] objectBytes = SerializeContent(newObject); 
-        string contentHash = ComputeSHA256Hash(objectBytes);
-
-        // --- 2. Deduplication Check (The Magic) ---
-        if (_canonicalObjects.TryGetValue(contentHash, out T canonicalObject))
-        {
-            // Collision found! Return the existing, shared object.
-            return canonicalObject;
-        }
-        else
-        {
-            // First time seeing this content. Store the new object as canonical.
-            _canonicalObjects.TryAdd(contentHash, newObject);
-            return newObject;
-        }
-    }
-
-    private string ComputeSHA256Hash(byte[] bytes)
-    {
-        using (var sha256 = SHA256.Create())
-        {
-            byte[] hashBytes = sha256.ComputeHash(bytes);
-            return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-        }
-    }
-
-    private byte[] SerializeContent(T obj)
-    {
-        // !!! IMPORTANT !!!
-        // In a real application, you must implement reliable, field-by-field 
-        // byte serialization here (e.g., using Protobuf or custom BinaryWriter)
-        // to ensure deterministic hashing.
-        
-        // Example for byte arrays:
-        if (obj is byte[] bytes) return bytes;
-        
-        // Placeholder for complex objects:
-        throw new NotImplementedException($"Serialization logic required for type {typeof(T).Name}.");
-    }
+    byte[] GetContentBytes();
 }
