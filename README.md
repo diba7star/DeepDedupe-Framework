@@ -35,7 +35,6 @@ We provide the core contract and the deduplication logic in C#.
 
 ### ۱. فایل `IDeduplicable.cs` (The Contract)
 
-ایجاد این اینترفیس برای توسعه‌دهندگان ضروری است تا بتوانند آبجکت‌ها را برای هش‌گیری آماده کنند.
 
 ```csharp
 // IDeduplicable.cs
